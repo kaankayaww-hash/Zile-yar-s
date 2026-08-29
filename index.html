@@ -3,26 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Zile Sokakları 3D - GLTF Harita Entegre</title>
+    <title>Zile Sokakları & Zile Kalesi 3D</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial', sans-serif; user-select: none; }
         #canvas-container { width: 100vw; height: 100vh; display: block; }
-        
         #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
         #dashboard { background: rgba(0, 0, 0, 0.6); padding: 15px 25px; border-radius: 15px; margin: 15px; color: #fff; font-size: 18px; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); width: fit-content; }
         .speed-val { font-size: 32px; font-weight: bold; color: #ff3b30; }
         .gear-val { font-size: 20px; color: #34c759; font-weight: bold; }
-
         #controls { pointer-events: auto; display: flex; justify-content: space-between; align-items: flex-end; padding: 20px; }
         .steering-group { display: flex; gap: 15px; }
         .pedal-group { display: flex; gap: 15px; align-items: flex-end; }
-        
         .btn { width: 70px; height: 70px; background: rgba(255, 255, 255, 0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-size: 24px; font-weight: bold; display: flex; justify-content: center; align-items: center; cursor: pointer; backdrop-filter: blur(5px); }
         .btn:active { background: rgba(255, 59, 48, 0.8); transform: scale(0.95); }
         .btn-pedal { width: 75px; height: 110px; border-radius: 15px; }
         .btn-gas { background: rgba(52, 199, 89, 0.4); border-color: #34c759; }
         .btn-brake { background: rgba(255, 59, 48, 0.4); border-color: #ff3b30; }
-        
         #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #111, #222); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; z-index: 10; }
         h1 { margin-bottom: 5px; color: #ff3b30; text-shadow: 0 0 10px rgba(255,59,48,0.5); font-size: 36px; }
         select, button { padding: 12px 25px; font-size: 18px; border-radius: 8px; border: none; margin: 10px; cursor: pointer; }
@@ -30,17 +26,15 @@
         .btn-start { background: #ff3b30; color: white; font-weight: bold; font-size: 22px; transition: 0.2s; }
         .btn-start:hover { background: #e0322b; transform: scale(1.05); }
     </style>
-    <!-- Three.js ve GLTF Yükleyici Kütüphaneleri -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
 
     <div id="canvas-container"></div>
 
     <div id="menu">
-        <h1>ZİLE SOKAKLARI 3D</h1>
-        <p>3D Harita Destekli Otomatik Vites Sokak Yarışı 🚦</p>
+        <h1>ZİLE SOKAKLARI 3D 🏰</h1>
+        <p>Zile Kalesi & Otomatik Vites Yarış 🚦</p>
         
         <div>
             <label for="carSelect">Araba Seç:</label>
@@ -71,7 +65,7 @@
         <div id="dashboard">
             <div>Hız: <span class="speed-val" id="speed">0</span> km/h</div>
             <div>Vites: <span class="gear-val" id="gear">D (Otomatik)</span></div>
-            <div>Konum: 📍 Zile Haritası</div>
+            <div>Konum: 📍 Zile Kalesi Yolu</div>
         </div>
 
         <div id="controls">
@@ -98,21 +92,17 @@
             const carType = document.getElementById('carSelect').value;
             const graphics = document.getElementById('graphicsSelect').value;
 
-            // Scene Setup
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.Fog(0x87ceeb, 20, 200);
+            scene.fog = new THREE.Fog(0x87ceeb, 20, 250);
 
-            // Camera Setup
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-            // Renderer Setup
             renderer = new THREE.WebGLRenderer({ antialias: graphics !== 'low' });
             renderer.setSize(window.innerWidth, window.innerHeight);
             if (graphics === 'high') renderer.shadowMap.enabled = true;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // Lights
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
@@ -121,39 +111,76 @@
             if (graphics === 'high') sunLight.castShadow = true;
             scene.add(sunLight);
 
-            // 3D Zile Harita Dosyasını Yükleme (GLTF Loader)
-            loadZileMap();
+            // Zile Kalesi ve Sokaklarını Kodla Çiz
+            buildZileCity();
 
-            // Seçilen Arabayı Oluşturma
+            // Seçilen Arabayı Ekle
             createCar(carType);
 
-            // Kontroller
             setupControls();
-
-            // Oyun Döngüsü
             animate();
         }
 
-        function loadZileMap() {
-            const loader = new THREE.GLTFLoader();
-            // GitHub deposuna yükleyeceğin harita dosyasının adı: zile_haritasi.glb
-            loader.load('zile_haritasi.glb', function (gltf) {
-                const mapModel = gltf.scene;
-                mapModel.position.set(0, 0, 0);
-                scene.add(mapModel);
-                console.log("Zile 3D haritası yüklendi! 🗺️");
-            }, undefined, function (error) {
-                console.warn("Zile harita dosyası henüz depoya yüklenmedi. Yedek yol oluşturuluyor... ⚠️");
-                createFallbackRoad();
-            });
-        }
-
-        function createFallbackRoad() {
-            const roadGeo = new THREE.PlaneGeometry(20, 2000);
+        function buildZileCity() {
+            // Yol
+            const roadGeo = new THREE.PlaneGeometry(24, 2000);
             const roadMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
             const road = new THREE.Mesh(roadGeo, roadMat);
             road.rotation.x = -Math.PI / 2;
             scene.add(road);
+
+            // Şeritler
+            for (let i = -1000; i < 1000; i += 25) {
+                const lineGeo = new THREE.PlaneGeometry(0.6, 10);
+                const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const line = new THREE.Mesh(lineGeo, lineMat);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(0, 0.02, i);
+                scene.add(line);
+            }
+
+            // Zile Kalesi (3D Tepe ve Sur Yapısı)
+            const castleHill = new THREE.Mesh(
+                new THREE.ConeGeometry(80, 50, 32),
+                new THREE.MeshLambertMaterial({ color: 0x556b2f })
+            );
+            castleHill.position.set(-120, 20, -200);
+            scene.add(castleHill);
+
+            // Zile Kalesi Surları ve Kulesi
+            const castleTower = new THREE.Mesh(
+                new THREE.CylinderGeometry(15, 18, 40, 16),
+                new THREE.MeshLambertMaterial({ color: 0x8b7355 })
+            );
+            castleTower.position.set(-120, 50, -200);
+            scene.add(castleTower);
+
+            // Zile Evleri & Binaları & Trafik Işıkları
+            for (let i = -900; i < 900; i += 45) {
+                const b1 = new THREE.Mesh(
+                    new THREE.BoxGeometry(14, Math.random() * 15 + 10, 22),
+                    new THREE.MeshLambertMaterial({ color: 0xd2b48c })
+                );
+                b1.position.set(-22, b1.geometry.parameters.height / 2, i);
+                scene.add(b1);
+
+                const b2 = new THREE.Mesh(
+                    new THREE.BoxGeometry(14, Math.random() * 15 + 10, 22),
+                    new THREE.MeshLambertMaterial({ color: 0xe06666 })
+                );
+                b2.position.set(22, b2.geometry.parameters.height / 2, i);
+                scene.add(b2);
+
+                if (i % 130 === 0) {
+                    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 9), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+                    pole.position.set(11, 4.5, i);
+                    scene.add(pole);
+                    
+                    const lightBox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 3, 1.2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+                    lightBox.position.set(11, 8.5, i);
+                    scene.add(lightBox);
+                }
+            }
         }
 
         function createCar(type) {
@@ -163,15 +190,15 @@
             if (type.includes('sahin') || type.includes('dogan')) carColor = 0xffffff;
             if (type.includes('lamborghini')) carColor = 0xffcc00;
             if (type.includes('audi')) carColor = 0x222222;
-            if (type.includes('egea')) carColor = 0x888888;
+            if (type.includes('egea')) carColor = 0x778899;
 
-            const bodyGeo = new THREE.BoxGeometry(2.2, 1.2, 4.5);
+            const bodyGeo = new THREE.BoxGeometry(2.3, 1.2, 4.6);
             const bodyMat = new THREE.MeshPhongMaterial({ color: carColor });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
             body.position.y = 0.8;
             car.add(body);
 
-            const cabinGeo = new THREE.BoxGeometry(1.8, 0.9, 2.2);
+            const cabinGeo = new THREE.BoxGeometry(1.9, 0.9, 2.3);
             const cabinMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
             const cabin = new THREE.Mesh(cabinGeo, cabinMat);
             cabin.position.set(0, 1.7, -0.2);
@@ -234,6 +261,7 @@
             if (keys.left && Math.abs(speed) > 1) car.position.x -= 0.15 * (speed / 50);
             if (keys.right && Math.abs(speed) > 1) car.position.x += 0.15 * (speed / 50);
 
+            car.position.x = Math.max(-9, Math.min(9, car.position.x));
             car.position.z -= speed * 0.03;
 
             camera.position.set(car.position.x, car.position.y + 4, car.position.z + 10);
