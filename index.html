@@ -3,20 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Zile Sokakları 3D - Otomatik Vites Sokak Yarışı</title>
+    <title>Zile Sokakları 3D - GLTF Harita Entegre</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial', sans-serif; user-select: none; }
         #canvas-container { width: 100vw; height: 100vh; display: block; }
         
-        /* UI Overlay */
         #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
-        
-        /* Dashboard */
         #dashboard { background: rgba(0, 0, 0, 0.6); padding: 15px 25px; border-radius: 15px; margin: 15px; color: #fff; font-size: 18px; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); width: fit-content; }
         .speed-val { font-size: 32px; font-weight: bold; color: #ff3b30; }
         .gear-val { font-size: 20px; color: #34c759; font-weight: bold; }
 
-        /* Controls */
         #controls { pointer-events: auto; display: flex; justify-content: space-between; align-items: flex-end; padding: 20px; }
         .steering-group { display: flex; gap: 15px; }
         .pedal-group { display: flex; gap: 15px; align-items: flex-end; }
@@ -27,7 +23,6 @@
         .btn-gas { background: rgba(52, 199, 89, 0.4); border-color: #34c759; }
         .btn-brake { background: rgba(255, 59, 48, 0.4); border-color: #ff3b30; }
         
-        /* Garage / Menu */
         #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #111, #222); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; z-index: 10; }
         h1 { margin-bottom: 5px; color: #ff3b30; text-shadow: 0 0 10px rgba(255,59,48,0.5); font-size: 36px; }
         select, button { padding: 12px 25px; font-size: 18px; border-radius: 8px; border: none; margin: 10px; cursor: pointer; }
@@ -35,17 +30,17 @@
         .btn-start { background: #ff3b30; color: white; font-weight: bold; font-size: 22px; transition: 0.2s; }
         .btn-start:hover { background: #e0322b; transform: scale(1.05); }
     </style>
-    <!-- Three.js 3D Library -->
+    <!-- Three.js ve GLTF Yükleyici Kütüphaneleri -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
 
     <div id="canvas-container"></div>
 
-    <!-- Menu Screen -->
     <div id="menu">
         <h1>ZİLE SOKAKLARI 3D</h1>
-        <p>Otomatik Vites Sokak Yarışı 🚦</p>
+        <p>3D Harita Destekli Otomatik Vites Sokak Yarışı 🚦</p>
         
         <div>
             <label for="carSelect">Araba Seç:</label>
@@ -72,12 +67,11 @@
         <button class="btn-start" onclick="initGame()">YARIŞA BAŞLA 🏎️</button>
     </div>
 
-    <!-- In-Game UI -->
     <div id="ui">
         <div id="dashboard">
             <div>Hız: <span class="speed-val" id="speed">0</span> km/h</div>
             <div>Vites: <span class="gear-val" id="gear">D (Otomatik)</span></div>
-            <div>Konum: 📍 Zile Merkez</div>
+            <div>Konum: 📍 Zile Haritası</div>
         </div>
 
         <div id="controls">
@@ -93,11 +87,9 @@
     </div>
 
     <script>
-        let scene, camera, renderer, car, road;
+        let scene, camera, renderer, car;
         let speed = 0;
         let maxSpeed = 180;
-        let accel = 0;
-        let steering = 0;
         let keys = { gas: false, brake: false, left: false, right: false };
 
         function initGame() {
@@ -106,89 +98,62 @@
             const carType = document.getElementById('carSelect').value;
             const graphics = document.getElementById('graphicsSelect').value;
 
-            // 1. Scene Setup
+            // Scene Setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb); // Zile Gündüz Gökyüzü
-            scene.fog = new THREE.Fog(0x87ceeb, 20, 150);
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.Fog(0x87ceeb, 20, 200);
 
-            // 2. Camera Setup
+            // Camera Setup
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            // 3. Renderer Setup
+
+            // Renderer Setup
             renderer = new THREE.WebGLRenderer({ antialias: graphics !== 'low' });
             renderer.setSize(window.innerWidth, window.innerHeight);
             if (graphics === 'high') renderer.shadowMap.enabled = true;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // 4. Lights
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
-            const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            const sunLight = new THREE.DirectionalLight(0xffffff, 0.9);
             sunLight.position.set(50, 100, 50);
             if (graphics === 'high') sunLight.castShadow = true;
             scene.add(sunLight);
 
-            // 5. Zile Road & Buildings
-            createZileCity();
+            // 3D Zile Harita Dosyasını Yükleme (GLTF Loader)
+            loadZileMap();
 
-            // 6. Spawn Selected Car
+            // Seçilen Arabayı Oluşturma
             createCar(carType);
 
-            // 7. Event Listeners
+            // Kontroller
             setupControls();
 
-            // 8. Game Loop
+            // Oyun Döngüsü
             animate();
         }
 
-        function createZileCity() {
-            // Road
-            const roadGeo = new THREE.PlaneGeometry(20, 1000);
+        function loadZileMap() {
+            const loader = new THREE.GLTFLoader();
+            // GitHub deposuna yükleyeceğin harita dosyasının adı: zile_haritasi.glb
+            loader.load('zile_haritasi.glb', function (gltf) {
+                const mapModel = gltf.scene;
+                mapModel.position.set(0, 0, 0);
+                scene.add(mapModel);
+                console.log("Zile 3D haritası yüklendi! 🗺️");
+            }, undefined, function (error) {
+                console.warn("Zile harita dosyası henüz depoya yüklenmedi. Yedek yol oluşturuluyor... ⚠️");
+                createFallbackRoad();
+            });
+        }
+
+        function createFallbackRoad() {
+            const roadGeo = new THREE.PlaneGeometry(20, 2000);
             const roadMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
-            road = new THREE.Mesh(roadGeo, roadMat);
+            const road = new THREE.Mesh(roadGeo, roadMat);
             road.rotation.x = -Math.PI / 2;
             scene.add(road);
-
-            // Road Lines
-            for (let i = -500; i < 500; i += 20) {
-                const lineGeo = new THREE.PlaneGeometry(0.5, 8);
-                const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                const line = new THREE.Mesh(lineGeo, lineMat);
-                line.rotation.x = -Math.PI / 2;
-                line.position.set(0, 0.01, i);
-                scene.add(line);
-            }
-
-            // Buildings / Zile Decor
-            for (let i = -450; i < 450; i += 40) {
-                // Left Building
-                const b1 = new THREE.Mesh(
-                    new THREE.BoxGeometry(12, Math.random() * 20 + 10, 20),
-                    new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff })
-                );
-                b1.position.set(-18, b1.geometry.parameters.height / 2, i);
-                scene.add(b1);
-
-                // Right Building
-                const b2 = new THREE.Mesh(
-                    new THREE.BoxGeometry(12, Math.random() * 20 + 10, 20),
-                    new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff })
-                );
-                b2.position.set(18, b2.geometry.parameters.height / 2, i);
-                scene.add(b2);
-
-                // Trafik Işıkları
-                if (i % 120 === 0) {
-                    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 8), new THREE.MeshLambertMaterial({ color: 0x222222 }));
-                    pole.position.set(9, 4, i);
-                    scene.add(pole);
-                    
-                    const lightBox = new THREE.Mesh(new THREE.BoxGeometry(1, 2.5, 1), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-                    lightBox.position.set(9, 7.5, i);
-                    scene.add(lightBox);
-                }
-            }
         }
 
         function createCar(type) {
@@ -200,28 +165,21 @@
             if (type.includes('audi')) carColor = 0x222222;
             if (type.includes('egea')) carColor = 0x888888;
 
-            // Car Body
             const bodyGeo = new THREE.BoxGeometry(2.2, 1.2, 4.5);
             const bodyMat = new THREE.MeshPhongMaterial({ color: carColor });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
             body.position.y = 0.8;
             car.add(body);
 
-            // Car Cabin / Roof
             const cabinGeo = new THREE.BoxGeometry(1.8, 0.9, 2.2);
             const cabinMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
             const cabin = new THREE.Mesh(cabinGeo, cabinMat);
             cabin.position.set(0, 1.7, -0.2);
             car.add(cabin);
 
-            // Wheels
             const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
             const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-            
-            const wheelPositions = [
-                [-1.2, 0.4, 1.4], [1.2, 0.4, 1.4],
-                [-1.2, 0.4, -1.4], [1.2, 0.4, -1.4]
-            ];
+            const wheelPositions = [[-1.2, 0.4, 1.4], [1.2, 0.4, 1.4], [-1.2, 0.4, -1.4], [1.2, 0.4, -1.4]];
 
             wheelPositions.forEach(pos => {
                 const w = new THREE.Mesh(wheelGeo, wheelMat);
@@ -265,29 +223,22 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // Physics & Automatic Transmission Logic
             if (keys.gas) {
                 if (speed < maxSpeed) speed += 0.8;
             } else if (keys.brake) {
                 if (speed > -40) speed -= 1.2;
             } else {
-                speed *= 0.98; // Friction / Coasting
+                speed *= 0.98;
             }
 
             if (keys.left && Math.abs(speed) > 1) car.position.x -= 0.15 * (speed / 50);
             if (keys.right && Math.abs(speed) > 1) car.position.x += 0.15 * (speed / 50);
 
-            // Boundary
-            car.position.x = Math.max(-8, Math.min(8, car.position.x));
-
-            // Move car forward in world
             car.position.z -= speed * 0.03;
 
-            // Camera Follow
             camera.position.set(car.position.x, car.position.y + 4, car.position.z + 10);
             camera.lookAt(car.position.x, car.position.y + 1, car.position.z - 5);
 
-            // UI Updates
             document.getElementById('speed').innerText = Math.round(Math.abs(speed));
             
             let gearText = "N";
