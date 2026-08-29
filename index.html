@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Zile Sokakları & Zile Kalesi 3D</title>
+    <title>Zile Sokakları 3D: SONSUZ YOL 🏎️💨</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial', sans-serif; user-select: none; }
         #canvas-container { width: 100vw; height: 100vh; display: block; }
@@ -26,7 +26,7 @@
         .btn-start { background: #ff3b30; color: white; font-weight: bold; font-size: 22px; transition: 0.2s; }
         .btn-start:hover { background: #e0322b; transform: scale(1.05); }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.min.js"></script>
 </head>
 <body>
 
@@ -34,7 +34,7 @@
 
     <div id="menu">
         <h1>ZİLE SOKAKLARI 3D 🏰</h1>
-        <p>Zile Kalesi & Otomatik Vites Yarış 🚦</p>
+        <p>Sonsuz Zile Kalesi Yolu & Otomatik Vites 🚦</p>
         
         <div>
             <label for="carSelect">Araba Seç:</label>
@@ -58,14 +58,14 @@
             </select>
         </div>
 
-        <button class="btn-start" onclick="initGame()">YARIŞA BAŞLA 🏎️</button>
+        <button class="btn-start" onclick="initGame()">SONSUZ GAZLA 🏎️💨</button>
     </div>
 
     <div id="ui">
         <div id="dashboard">
             <div>Hız: <span class="speed-val" id="speed">0</span> km/h</div>
             <div>Vites: <span class="gear-val" id="gear">D (Otomatik)</span></div>
-            <div>Konum: 📍 Zile Kalesi Yolu</div>
+            <div>Konum: 📍 Sonsuz Zile Yolu</div>
         </div>
 
         <div id="controls">
@@ -86,6 +86,11 @@
         let maxSpeed = 180;
         let keys = { gas: false, brake: false, left: false, right: false };
 
+        // Sonsuz Harita Sistem Değişkenleri
+        let roadSegments = [];
+        const segmentLength = 200; // Her bir yol parçasının uzunluğu
+        const visibleSegments = 6;  // Aynı anda ekranda kaç parça görünecek
+
         function initGame() {
             document.getElementById('menu').style.display = 'none';
 
@@ -94,7 +99,7 @@
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.Fog(0x87ceeb, 20, 250);
+            scene.fog = new THREE.Fog(0x87ceeb, 50, 300);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -111,8 +116,8 @@
             if (graphics === 'high') sunLight.castShadow = true;
             scene.add(sunLight);
 
-            // Zile Kalesi ve Sokaklarını Kodla Çiz
-            buildZileCity();
+            // SONSUZ Haritayı Başlat
+            initInfiniteRoad();
 
             // Seçilen Arabayı Ekle
             createCar(carType);
@@ -121,65 +126,77 @@
             animate();
         }
 
-        function buildZileCity() {
+        function initInfiniteRoad() {
+            // Başlangıçta 6 parça yol oluştur ve peş peşe diz
+            for (let i = 0; i < visibleSegments; i++) {
+                createRoadSegment(i * -segmentLength);
+            }
+        }
+
+        function createRoadSegment(zPosition) {
+            const segment = new THREE.Group();
+            segment.position.z = zPosition;
+
             // Yol
-            const roadGeo = new THREE.PlaneGeometry(24, 2000);
+            const roadGeo = new THREE.PlaneGeometry(24, segmentLength);
             const roadMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
             const road = new THREE.Mesh(roadGeo, roadMat);
             road.rotation.x = -Math.PI / 2;
-            scene.add(road);
+            segment.add(road);
 
             // Şeritler
-            for (let i = -1000; i < 1000; i += 25) {
+            for (let i = -segmentLength/2; i < segmentLength/2; i += 25) {
                 const lineGeo = new THREE.PlaneGeometry(0.6, 10);
                 const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
                 const line = new THREE.Mesh(lineGeo, lineMat);
                 line.rotation.x = -Math.PI / 2;
                 line.position.set(0, 0.02, i);
-                scene.add(line);
+                segment.add(line);
             }
 
-            // Zile Kalesi (3D Tepe ve Sur Yapısı)
-            const castleHill = new THREE.Mesh(
-                new THREE.ConeGeometry(80, 50, 32),
-                new THREE.MeshLambertMaterial({ color: 0x556b2f })
-            );
-            castleHill.position.set(-120, 20, -200);
-            scene.add(castleHill);
-
-            // Zile Kalesi Surları ve Kulesi
-            const castleTower = new THREE.Mesh(
-                new THREE.CylinderGeometry(15, 18, 40, 16),
-                new THREE.MeshLambertMaterial({ color: 0x8b7355 })
-            );
-            castleTower.position.set(-120, 50, -200);
-            scene.add(castleTower);
-
-            // Zile Evleri & Binaları & Trafik Işıkları
-            for (let i = -900; i < 900; i += 45) {
+            // Binalar & Trafik Işıkları (Rastgele dağılım)
+            for (let i = -segmentLength/2 + 10; i < segmentLength/2 - 10; i += 45) {
                 const b1 = new THREE.Mesh(
                     new THREE.BoxGeometry(14, Math.random() * 15 + 10, 22),
                     new THREE.MeshLambertMaterial({ color: 0xd2b48c })
                 );
                 b1.position.set(-22, b1.geometry.parameters.height / 2, i);
-                scene.add(b1);
+                segment.add(b1);
 
                 const b2 = new THREE.Mesh(
                     new THREE.BoxGeometry(14, Math.random() * 15 + 10, 22),
                     new THREE.MeshLambertMaterial({ color: 0xe06666 })
                 );
                 b2.position.set(22, b2.geometry.parameters.height / 2, i);
-                scene.add(b2);
+                segment.add(b2);
 
-                if (i % 130 === 0) {
+                if (Math.random() > 0.7) { // %30 ihtimalle trafik ışığı
                     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 9), new THREE.MeshLambertMaterial({ color: 0x222222 }));
                     pole.position.set(11, 4.5, i);
-                    scene.add(pole);
+                    segment.add(pole);
                     
                     const lightBox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 3, 1.2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
                     lightBox.position.set(11, 8.5, i);
-                    scene.add(lightBox);
+                    segment.add(lightBox);
                 }
+            }
+
+            scene.add(segment);
+            roadSegments.push(segment);
+        }
+
+        function updateInfiniteRoad() {
+            // Arabadan çok geride kalan yol parçasını bul
+            if (roadSegments.length > 0 && car.position.z < roadSegments[0].position.z - segmentLength) {
+                const oldestSegment = roadSegments.shift(); // En eski parçayı havuzdan al
+                
+                // En son eklenen parçanın pozisyonunu bul
+                const latestZ = roadSegments[roadSegments.length - 1].position.z;
+                
+                // Eski parçayı sonsuza (en öne) taşı
+                oldestSegment.position.z = latestZ - segmentLength;
+                
+                roadSegments.push(oldestSegment); // Havuza geri ekle
             }
         }
 
@@ -263,6 +280,9 @@
 
             car.position.x = Math.max(-9, Math.min(9, car.position.x));
             car.position.z -= speed * 0.03;
+
+            // Sonsuz Yol Güncellemesi: Araba ilerledikçe yolu uzat
+            updateInfiniteRoad();
 
             camera.position.set(car.position.x, car.position.y + 4, car.position.z + 10);
             camera.lookAt(car.position.x, car.position.y + 1, car.position.z - 5);
